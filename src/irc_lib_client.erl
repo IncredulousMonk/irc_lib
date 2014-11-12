@@ -64,7 +64,7 @@ handle_cast({connect, Host, Port}, State) ->
     % Try to connect to irc server
     Options = case State#state.socket_mod of
       ssl -> [{delay_send, false}, {verify, 0}, {nodelay, true}];
-      gen_tcp -> [{delay_send, false}, {nodelay, true}]
+      gen_tcp -> [{delay_send, false}, {nodelay, true}, {packet, line}]
     end,
     case (State#state.socket_mod):connect(binary_to_list(Host), Port, Options) of
         {ok, Socket} ->
@@ -149,7 +149,7 @@ handle_info(reconnect, State) ->
 %% @doc Incoming message
 handle_info({_, Socket, Data}, State) ->
     % Parse incoming data
-    case string:tokens(Data, " ") of
+    case string:tokens(strip_eol(Data), " ") of
         ["PING" | PongHost] ->
             % Send pong
             (State#state.socket_mod):send(Socket, "PONG " ++ PongHost ++ "\r\n"),
@@ -197,7 +197,9 @@ handle_info({_, Socket, Data}, State) ->
             end,
             % return
             {noreply, State#state{socket = Socket}};
-        _ ->
+        % unhandled messages
+        Message ->
+            State#state.callback ! {unhandled_message, Message},
             % return
             {noreply, State#state{socket = Socket}}
     end.
@@ -261,3 +263,8 @@ try_reconnect(#state{reconnect_timeout = Timeout} = State) ->
             % return
             {noreply, State}
     end.
+
+%% @doc strip newlines
+strip_eol(String) ->
+    re:replace(String, "(^\\s+)|(\\s+$)", "", [global,{return,list}]).
+
