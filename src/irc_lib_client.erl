@@ -5,6 +5,7 @@
 %%% @end
 %%%-----------------------------------------------------------------------------
 -module(irc_lib_client).
+-compile([{parse_transform, lager_transform}]).
 
 -behaviour(gen_server).
 
@@ -178,6 +179,11 @@ handle_info({_, Socket, Data}, State) ->
             NewNickName = binary_to_list(State#state.login) ++ integer_to_list(lists:last(binary_to_list(State#state.login)) + 1),
             % try reconnect with new name
             try_reconnect(State#state{login = list_to_binary(NewNickName), socket = Socket});
+        [_, "353", _, _, Channel | RawNames] ->
+            %% Strip chars off names
+            Names = [ string:strip(string:strip(string:strip(N, left, $:), left, $@), left, $+) || N <- RawNames ],
+            State#state.callback ! {names, Channel, Names},
+            {noreply, State};
         [User, "PRIVMSG", To | Message] ->
             % Get incoming message
             [_ | IncomingMessage] = string:join(Message, " "),
@@ -197,12 +203,25 @@ handle_info({_, Socket, Data}, State) ->
             end,
             % return
             {noreply, State#state{socket = Socket}};
-        % unhandled messages
-        Message ->
-            State#state.callback ! {unhandled_message, Message},
+        % unhandled lines
+        Line ->
+            lager:warning("Unhandled message: ~p", [Line]),
             % return
             {noreply, State#state{socket = Socket}}
-    end.
+    end;
+
+handle_info({raw, Line}, State) ->
+    lager:warning("Sending raw: ~p", [Line]),
+    (State#state.socket_mod):send(State#state.socket, Line ++ "\r\n"),
+    {noreply, State};
+
+%% i *know* the erlang way is to let stuff crash but it doesn't seem
+%% appropriate to crash the whole server when you get an irc line
+%% you don't understand... so the next one is to catch wildcards
+
+handle_info(Args, State) ->
+    lager:info("Wildcard handle_info: ~p", [Args]),
+    {noreply, State}.
 
 terminate(_Reason, State) ->
     % Check active socket
