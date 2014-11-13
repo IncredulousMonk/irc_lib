@@ -172,14 +172,6 @@ handle_info({_, Socket, Data}, State) ->
             lager:error("Error: ~p", [Err]),
             try_reconnect(State);
 
-        %% NAMES reply
-        #irc_strings{cmd = "353", args = [_,_,Channel,RawNames]} ->
-            %% Strip chars off names
-            %% TODO clean this mess
-            Names = [ string:strip(string:strip(string:strip(N, left, $:), left, $@), left, $+) || N <- string:tokens(RawNames, " ") ],
-            State#state.callback ! {names, Channel, Names},
-            {noreply, State};
-
         %% wrong server
         #irc_strings{cmd = "402"} ->
             lager:info("Wrong server address ~p", [State#state.host]);
