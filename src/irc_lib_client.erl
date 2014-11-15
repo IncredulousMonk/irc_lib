@@ -40,7 +40,11 @@
     % calback module
     callback = null,
     % reconnect timeout
-    reconnect_timeout = 0 :: integer()
+    reconnect_timeout = 0 :: integer(),
+    % rate limit
+    ms_per_line = 500 :: integer(),
+    % when last line was sent (in ms since epoch)
+    last_line_sent = 0 :: integer()
     }).
 -include("proto.hrl").
 
@@ -224,9 +228,7 @@ handle_info({raw, <<Line>>}, State) ->
     handle_info({raw, binary_to_list(Line)},State);
 
 handle_info({raw, Line}, State) ->
-    lager:debug("Sending raw: ~p", [Line]),
-    (State#state.socket_mod):send(State#state.socket, Line ++ "\r\n"),
-    {noreply, State};
+    limited_send(Line, State);
 
 %% i *know* the erlang way is to let stuff crash but it doesn't seem
 %% appropriate to crash the whole server when you get an irc line
@@ -235,6 +237,23 @@ handle_info({raw, Line}, State) ->
 handle_info(Args, State) ->
     lager:warning("Wildcard handle_info: ~p", [Args]),
     {noreply, State}.
+
+%% rate limiting
+limited_send(Line, State) ->
+    limited_send(Line, State, now_ms()).
+
+%% rate limit green
+limited_send(Line, State, Now) when Now - State#state.last_line_sent >= State#state.ms_per_line ->
+    lager:debug("Sending raw: ~p", [Line]),
+    (State#state.socket_mod):send(State#state.socket, Line ++ "\r\n"),
+    {noreply, State#state{last_line_sent = Now}};
+
+%% rate limit yellow
+limited_send(Line, State, Now) ->
+    Delay = Now - State#state.last_line_sent,
+    lager:debug("Raw send rate limited, sleeping ~p", [Delay]),
+    timer:sleep(Delay),
+    limited_send(Line, State).
 
 terminate(_Reason, State) ->
     % Check active socket
@@ -256,6 +275,11 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
  
 %% Internal functions
+
+%% get current time in milliseconds
+now_ms() ->
+    [NowMegaSecs, NowSecs, NowMicroSecs] = os:timestamp(),
+    (((NowMegaSecs * 1000000) + NowSecs) * 1000) + round(NowMicroSecs/1000).
 
 irc_connect(Socket, State) ->
     do_connect(State#state.socket_mod, Socket, State#state.password, State#state.login, State#state.channels).
