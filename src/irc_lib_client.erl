@@ -196,14 +196,12 @@ handle_info({_, Socket, Data}, State) ->
             try_reconnect(State#state{login = list_to_binary(NewNickName), socket = Socket});
 
         %% PRIVMSG
-        #irc_strings{cmd = "PRIVMSG", args = [To|Message], prefix = User} ->
+        #irc_strings{cmd = "PRIVMSG", args = [To|Message], prefix = From} ->
 
             % Get incoming message
             [_ | IncomingMessage] = string:join(Message, " "),
             % Check private message or not
             [Symb | _] = To,
-            % Get user
-            [$: | From] = User,
             % Check the first symbol   
             case Symb of
                 % this is public message
@@ -327,7 +325,8 @@ parse_irc(Prefix, Rest) ->
             Args = [ binary_to_list(A) || A <- re:split(RestStripped, "\s+", [{return, binary}]) ]
     end,
     [Command|FinalArgs] = Args,
-    lager:debug("Prefix '~p' Command '~p' Args '~p'~n", [Prefix, Command, FinalArgs]),
+    PrefixList = binary_to_list(Prefix),
+    lager:debug("Prefix '~p' Command '~p' Args '~p'~n", [PrefixList, Command, FinalArgs]),
     %%#irc_msg{prefix=Prefix, cmd=Command, args=FinalArgs}.
-    #irc_strings{prefix=binary_to_list(Prefix), cmd=Command, args=FinalArgs}.
+    #irc_strings{prefix=PrefixList, cmd=Command, args=FinalArgs}.
 
