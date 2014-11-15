@@ -196,10 +196,8 @@ handle_info({_, Socket, Data}, State) ->
             try_reconnect(State#state{login = list_to_binary(NewNickName), socket = Socket});
 
         %% PRIVMSG
-        #irc_strings{cmd = "PRIVMSG", args = [To|Message], prefix = From} ->
+        #irc_strings{cmd = "PRIVMSG", args = [To|IncomingMessage], prefix = From} ->
 
-            % Get incoming message
-            IncomingMessage = string:join(Message, " "),
             % Check private message or not
             [Symb | _] = To,
             % Check the first symbol   
