@@ -199,7 +199,7 @@ handle_info({_, Socket, Data}, State) ->
         #irc_strings{cmd = "PRIVMSG", args = [To|Message], prefix = From} ->
 
             % Get incoming message
-            [_ | IncomingMessage] = string:join(Message, " "),
+            IncomingMessage = string:join(Message, " "),
             % Check private message or not
             [Symb | _] = To,
             % Check the first symbol   
