@@ -151,7 +151,7 @@ handle_info(reconnect, State) ->
 %% @doc Incoming message
 handle_info({_, Socket, Data}, State) ->
     % Parse incoming data
-    Record = parse_irc(Data),
+    Record = irc_parser:parse_irc(Data),
 
     %% Send the raw line
     State#state.callback ! {irc_line, Record},
@@ -295,36 +295,4 @@ try_reconnect(#state{reconnect_timeout = Timeout} = State) ->
             % return
             {noreply, State}
     end.
-
-%% Utility function to split how a nick (nick!ident@host)
-split_nick(FullNick) ->
-    [_FromNick, _IdentHost] = re:split(FullNick, "!", [{parts, 2}, {return, binary}]).
-
-%% https://github.com/npwolf/erlbot/blob/master/src/irc_router.erl
-%% Parse irc messages like Python's Twisted http://stackoverflow.com/questions/930700/python-parsing-irc-messages
-%% parse_irc(<<":test!~test@test.com PRIVMSG #channel :Hey there">>)
-%% #irc_msg{prefix = <<"test!~test@test.com">>, cmd = <<"PRIVMSG">>, args = [<<"#channel">>, <<"Hey there">>]}
-parse_irc(Data) when is_list(Data) ->
-    parse_irc(list_to_binary(Data));
-parse_irc(<< ":", Rest/binary >>) ->
-    [Prefix, NewRest] = re:split(Rest, " ", [{parts, 2}, {return, binary}]),
-    parse_irc(Prefix, NewRest);
-parse_irc(Rest) ->
-    parse_irc(<<>>, Rest).
-
-parse_irc(Prefix, Rest) ->
-    RestStripped = binary:replace(Rest, <<"\r\n">>, <<>>, [global]),
-    case re:run(RestStripped, " :") of 
-        {match, _} ->
-            [NewRest, Trailing] = re:split(RestStripped, " :", [{parts, 2}, {return, binary}]),
-            ArgParts = re:split(NewRest, "\s+", [{return, binary}]),
-            Args = [ binary_to_list(A) || A <- lists:append(ArgParts, [Trailing]) ];
-        _ ->
-            Args = [ binary_to_list(A) || A <- re:split(RestStripped, "\s+", [{return, binary}]) ]
-    end,
-    [Command|FinalArgs] = Args,
-    PrefixList = binary_to_list(Prefix),
-    lager:debug("Prefix '~p' Command '~p' Args '~p'~n", [PrefixList, Command, FinalArgs]),
-    %%#irc_msg{prefix=Prefix, cmd=Command, args=FinalArgs}.
-    #irc_strings{prefix=PrefixList, cmd=Command, args=FinalArgs}.
 
