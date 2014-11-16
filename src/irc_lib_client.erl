@@ -230,10 +230,6 @@ handle_info({raw, <<Line>>}, State) ->
 handle_info({raw, Line}, State) ->
     limited_send(Line, State);
 
-%% i *know* the erlang way is to let stuff crash but it doesn't seem
-%% appropriate to crash the whole server when you get an irc line
-%% you don't understand... so the next one is to catch wildcards
-
 handle_info(Args, State) ->
     lager:warning("Wildcard handle_info: ~p", [Args]),
     {noreply, State}.
