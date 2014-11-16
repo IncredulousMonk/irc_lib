@@ -46,8 +46,9 @@
     % when last line was sent (in ms since epoch)
     last_line_sent = 0 :: integer()
     }).
--include("proto.hrl").
 
+-include("proto.hrl").
+-include_lib("eunit/include/eunit.hrl").
 -define(TIMEOUT, 15000).
 
 start_link(CallbackModule, Host, Port, SocketMod, ChanList, Nick, ReconnectTimeout) ->
@@ -274,7 +275,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% get current time in milliseconds
 now_ms() ->
-    [NowMegaSecs, NowSecs, NowMicroSecs] = os:timestamp(),
+    {NowMegaSecs, NowSecs, NowMicroSecs} = os:timestamp(),
     (((NowMegaSecs * 1000000) + NowSecs) * 1000) + round(NowMicroSecs/1000).
 
 irc_connect(Socket, State) ->
@@ -315,4 +316,10 @@ try_reconnect(#state{reconnect_timeout = Timeout} = State) ->
             % return
             {noreply, State}
     end.
+
+%% tests
+
+now_ms_test() ->
+    %% TODO this is stupid
+    ?assert(0 < now_ms()).
 
