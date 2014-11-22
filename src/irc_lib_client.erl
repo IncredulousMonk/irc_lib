@@ -42,7 +42,7 @@
     % reconnect timeout
     reconnect_timeout = 0 :: integer(),
     % rate limit
-    ms_per_line = 500 :: integer(),
+    ms_per_line = 250 :: integer(),
     % when last line was sent (in ms since epoch)
     last_line_sent = 0 :: integer()
     }).
