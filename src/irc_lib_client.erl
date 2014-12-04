@@ -120,20 +120,20 @@ handle_info({join, Socket, Message}, State) ->
     {noreply, State};
 
 handle_info({ssl_closed, Reason}, State) ->
-    lager:info("ssl_closed with reason: ~p~n", [Reason]),
-    try_reconnect(State);
+    lager:info("ssl_closed with reason: ~p", [Reason]),
+    {stop, {ssl_closed, Reason}, State};
 
 handle_info({ssl_error, _Socket, Reason}, State) ->
-    lager:error("tcp_error: ~p~n", [Reason]),
-    try_reconnect(State);
+    lager:error("tcp_error: ~p", [Reason]),
+    {stop, {ssl_closed, Reason}, State};
 
 handle_info({tcp_closed, Reason}, State) ->
-    lager:info("tcp_closed with reason: ~p~n", [Reason]),
-    try_reconnect(State);
+    lager:info("tcp_closed with reason: ~p", [Reason]),
+    {stop, {ssl_closed, Reason}, State};
 
 handle_info({tcp_error, _Socket, Reason}, State) ->
-    lager:error("tcp_error: ~p~n", [Reason]),
-    try_reconnect(State);
+    lager:error("tcp_error: ~p", [Reason]),
+    {stop, {ssl_closed, Reason}, State};
 
 %% @doc reconnect
 handle_info(reconnect, State) ->
