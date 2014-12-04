@@ -171,7 +171,8 @@ handle_info({_, Socket, Data}, State) ->
         %% on connection established
         #irc_strings{cmd = "004"} ->
             lager:info("Trying to join channels"),
-            [ join_channel(State#state.socket_mod, Socket, Chan, ChanKey) || {Chan, ChanKey} <- State#state.channels ];
+            [ join_channel(State#state.socket_mod, Socket, Chan, ChanKey) || {Chan, ChanKey} <- State#state.channels ],
+            {noreply, State};
 
         %% wrong server
         #irc_strings{cmd = "402"} ->
