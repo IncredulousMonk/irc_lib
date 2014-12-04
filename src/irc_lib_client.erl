@@ -115,33 +115,24 @@ handle_cast({send_message, From, Message}, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-%% @doc Join to channel
 handle_info({join, Socket, Message}, State) ->
     (State#state.socket_mod):send(Socket, Message),
     {noreply, State};
 
 handle_info({ssl_closed, Reason}, State) ->
-    % Some log
     lager:info("ssl_closed with reason: ~p~n", [Reason]),
-    % try reconnect
     try_reconnect(State);
 
 handle_info({ssl_error, _Socket, Reason}, State) ->
-    % Some log
     lager:error("tcp_error: ~p~n", [Reason]),
-    % try reconnect
     try_reconnect(State);
 
 handle_info({tcp_closed, Reason}, State) ->
-    % Some log
     lager:info("tcp_closed with reason: ~p~n", [Reason]),
-    % try reconnect
     try_reconnect(State);
 
 handle_info({tcp_error, _Socket, Reason}, State) ->
-    % Some log
     lager:error("tcp_error: ~p~n", [Reason]),
-    % try reconnect
     try_reconnect(State);
 
 %% @doc reconnect
@@ -176,6 +167,11 @@ handle_info({_, Socket, Data}, State) ->
         #irc_strings{cmd = "ERROR", args = Err} ->
             lager:error("Error: ~p", [Err]),
             try_reconnect(State);
+
+        %% on connection established
+        #irc_strings{cmd = "004"} ->
+            lager:info("Trying to join channels"),
+            [ join_channel(State#state.socket_mod, Socket, Chan, ChanKey) || {Chan, ChanKey} <- State#state.channels ];
 
         %% wrong server
         #irc_strings{cmd = "402"} ->
@@ -279,12 +275,11 @@ now_ms() ->
     (((NowMegaSecs * 1000000) + NowSecs) * 1000) + round(NowMicroSecs/1000).
 
 irc_connect(Socket, State) ->
-    do_connect(State#state.socket_mod, Socket, State#state.password, State#state.login, State#state.channels).
+    do_connect(State#state.socket_mod, Socket, State#state.password, State#state.login).
 
-do_connect(Mod, Socket, Pass, Name, ChanList) ->
+do_connect(Mod, Socket, Pass, Name) ->
     ok = pass_maybe(Mod, Socket, Pass),
-    ok = sign_in(Mod, Socket, Name),
-    [ join_channel(Mod, Socket, Chan, ChanKey) || {Chan, ChanKey} <- ChanList ].
+    ok = sign_in(Mod, Socket, Name).
 
 pass_maybe(_, _, <<>>) -> ok;
 pass_maybe(M, Socket, Pass) when is_binary(Pass) -> 
@@ -295,6 +290,7 @@ sign_in(M, Socket, Name) ->
     M:send(Socket, "USER " ++ binary_to_list(Name) ++ " nohost noserver :Ybot\r\n").
 
 join_channel(M, Socket, Chan, ChanKey) ->
+    lager:info("Joining channel ~p", [Chan]),
     Delay = case M of 
       ssl -> ?TIMEOUT;
       _ -> 0
