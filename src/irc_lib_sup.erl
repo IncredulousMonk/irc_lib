@@ -35,11 +35,11 @@ start_irc_client(CallbackModule, Host, Port, Channel, Nick, UseSsl, ReconnectTim
     % irc child
     Child = {irc_lib_client, 
                 {irc_lib_client, start_link, [CallbackModule, Host, Port, SocketMod, Channel, Nick, ReconnectTimeout]},
-                 temporary, 2000, worker, []
+                 permanent, 2000, worker, []
              },
     % run new irc client
     supervisor:start_child(?MODULE, Child).
 
 init([]) ->
     % init
-    {ok,{{one_for_one, 2, 60}, []}}.
+    {ok,{{one_for_all, 2, 60}, []}}.
