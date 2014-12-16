@@ -42,4 +42,4 @@ start_irc_client(CallbackModule, Host, Port, Channel, Nick, UseSsl, ReconnectTim
 
 init([]) ->
     % init
-    {ok,{{one_for_all, 2, 60}, []}}.
+    {ok,{{one_for_all, 0, 60}, []}}.
