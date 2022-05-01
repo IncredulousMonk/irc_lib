@@ -1,12 +1,13 @@
 {application, irc_lib,
- [
-  {description, "Erlang irc client library."},
-  {vsn, "1"},
+ [{description, "Erlang IRC client library."},
+  {vsn, "1.0.0"},
   {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib
-                 ]},
-  {mod, { irc_lib_app, []}},
-  {env, []}
+  {mod, {irc_lib_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+  {links, []}
  ]}.

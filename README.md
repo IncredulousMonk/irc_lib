@@ -1,101 +1,80 @@
-Irc client library for erlang
-==============================
+IRC client library for Erlang
+=============================
 
-irc_lib - is irc client library for erlang application. It provides simple functional for communicating with irc servers.
+irc_lib - is an IRC client library for Erlang applications.
 
-[![Build Status](https://travis-ci.org/0xAX/irc_lib.png)](https://travis-ci.org/0xAX/irc_lib)
+This fork
+=========
 
-Features
-========
+I have largely rewritten the original code, incorporating the improvements made in chooper's fork.
 
-  * Simple connect to irc channel
-  * Callbacks
-  * SSL support
-  * Reconnect ability
-  * Multichannel support
-  * Dependency free
+* Now a rebar3 application (install [rebar3](https://www.rebar3.org/) if you don't have it).
+* Fixed the supervision tree.  Multiple bots may be run under one top-level supervisor.
+* SSL connections work now.
+* Changed logging from lager to the Erlang logger.
+
 
 Usage
-======
+=====
 
-First of all compile irc lib:
+Build
+-----
 
-```
-./rebar compile
-```
+    $ rebar3 compile
 
-Start root supervisor in your project or application:
+Run
+---
 
-```erlang
-irc_lib_sup:start_link().
-```
+    $ rebar3 shell
 
-Now create callback module which will be run and receive incoming irc messages:
+This will start the application's top-level supervisor, but no bots will run at this stage.
 
-```erlang
--module(irc_test).
+Running a bot
+-------------
 
--behavior(gen_server).
+    irc_lib_sup:start_irc_session(Name, BotModule, BotConfig).
 
--export([start_link/0]).
- 
-%% gen_server callbacks
--export([init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         terminate/2,
-         code_change/3]).
- 
-% state
--record(state, {}).
+Where:
+* Name is the name of the bot as a string.  This must be unique because it's used as an ID in the supervision tree.  It's not the IRC nick.
+* BotModule is the name of the module that contains the bot code.
+* BotConfig is any config term that you want to pass to the bot code, in the `start_link`.
 
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+The bot code
+------------
 
-init([]) ->
-	irc_lib_sup:start_link(),
-	irc_lib_sup:start_irc_client(?MODULE, <<"irc.freenode.net">>, 5667, false, [{<<"#erlang">>, ""}, {<<"#WeberMVC">>, ""}] <<"some-user-name">>, false, 1000),
-    {ok, #state{}}.
- 
-handle_call(_Request, _From, State) ->
-    {reply, ignored, State}.
+The bot code will run under a supervisor, so it can be a `gen_server` or a `gen_statem`.
 
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-handle_info({incoming_message, From, IncomingMessage}, State) ->
-	io:format("Incoming message: ~p ~p ~n", [IncomingMessage, From]),
-	{noreply, State};
-
-handle_info(_Info, State) ->
-    {noreply, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
- 
-%% Internal functions
-```
-
-Also sending message to irc channel:
+The code must implement the `irc_lib_client` behaviour:
 
 ```erlang
-irc_lib_client:send_message(Pid, <<"Hello erlangers">>).
+-behaviour(irc_lib_client).
 ```
 
-Where Pid - is pid of irc client process.
+This behaviour defines a `handle_message` callback, which will be called whenever a message is received from the IRC server:
 
-## Contribute
+```erlang
+-callback handle_message(Pid :: pid(), Verb :: string(), Source :: string(), Params :: [string()]) -> any().
+```
 
-  * Fork `irc_lib` repo
-  * Make changes
-  * Pull request
-  * Thank you.
+Where:
+* Pid is the pid of your bot process (to be used in a `cast`, for example).
+* Verb is the IRC message verb, as a string not a number (for example, "RPL_WELCOME" or "ERR_NICKNAMEINUSE").
+* Source is the IRC message source.
+* Params are the IRC message params, as a list of strings (may be an empty list).
+
+After the bot process has been started it must wait for two `info` messages to be received before it tries to connect to an IRC server:
+
+1. `{peer, Pid}`.  This message contains the pid of the irc_lib_client process.
+2. `ready`.  This message is sent once the irc_lib_client process has started.
+
+The order of these messages is not defined, because they are sent by different processes.
+
+Example code
+------------
+
+See `irc_bot.erl` for an example of bot code that is a state machine using `gen_statem`.
 
 Authors
-========
+=======
 
-[@0xAX](https://twitter.com/anotherworldofw)
+See the AUTHORS file.

@@ -7,3 +7,5 @@ Author:
 Contributor:
 
     [@podmostom](https://twitter.com/podmostom) - PASS message, code refactoring.
+    [chooper] - Various changes.
+    [IncredulousMonk] - Rebar3, fixed supervision tree, made SSL work, changed bot code into a gen_statem.

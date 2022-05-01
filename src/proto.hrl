@@ -1,2 +1,0 @@
--record(irc_msg, {prefix = <<>>, cmd = <<>>, args = <<>>}).
--record(irc_strings, {prefix = [], cmd = [], args = []}).

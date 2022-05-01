@@ -1,45 +1,40 @@
+%%%-------------------------------------------------------------------
+%% @doc irc_lib top level supervisor.
+%% @end
+%%%-------------------------------------------------------------------
+
 -module(irc_lib_sup).
 
 -behaviour(supervisor).
 
-%% API
--export([start_link/0, start_irc_client/7]).
+-export([start_link/0, start_irc_session/3]).
 
-%% Supervisor callbacks
 -export([init/1]).
-
-
-%% ===================================================================
-%% API functions
-%% ===================================================================
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
     
-%% @doc Start new irc client
+%% @doc Start a new IRC session.
 %% @end
--spec start_irc_client(CallbackModule :: atom() | pid(), 
-                       Host :: binary(),
-                       Port :: integer(),
-                       Channel :: {binary(), binary()}, 
-                       Nick :: binary(),
-                       UseSsl :: boolean(),
-                       ReconnectTimeout :: integer()) 
-                       -> {ok, Pid :: pid()} | {error, Reason :: term()}.
-start_irc_client(CallbackModule, Host, Port, Channel, Nick, UseSsl, ReconnectTimeout) ->
-    % Check use ssl or not
-    SocketMod = case UseSsl of
-      true -> ssl;
-      false -> gen_tcp
-    end,
-    % irc child
-    Child = {irc_lib_client, 
-                {irc_lib_client, start_link, [CallbackModule, Host, Port, SocketMod, Channel, Nick, ReconnectTimeout]},
-                 permanent, 2000, worker, []
-             },
-    % run new irc client
-    supervisor:start_child(?MODULE, Child).
+-spec start_irc_session(Name, BotModule, BotConfig) -> any() when
+    Name :: string(),
+    BotModule :: atom(),
+    BotConfig :: any().
+start_irc_session(Name, BotModule, BotConfig) ->
+    Child = #{
+        id => Name ++ "_session",
+        start => {irc_session_sup, start_link, [Name, BotModule, BotConfig]},
+        restart => temporary
+    },
+    {ok, SessionPid} = supervisor:start_child(?MODULE, Child),
+    irc_session_sup:connect_children(SessionPid).
 
 init([]) ->
-    % init
-    {ok,{{one_for_all, 0, 60}, []}}.
+    logger:debug("Top-level supervisor initialising."),
+    SupFlags = #{
+        strategy => one_for_one,
+        intensity => 0,
+        period => 60
+    },
+    ChildSpecs = [],
+    {ok, {SupFlags, ChildSpecs}}.
